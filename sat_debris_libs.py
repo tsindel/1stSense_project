@@ -134,7 +134,7 @@ def sat_2_orb_dists(
             (x_circle.T.flatten(), y_circle.T.flatten(), z_circle.T.flatten())
         )
         norms = np.linalg.norm(diffs, axis=1)
-        distances[i] = np.min(norms)  # ! THIS ASSUMES THAT ONE COLLISION IS ENOUGH TO DESTROY THE SATELLITE - WRONG ASSUMPTION
+        distances[i] = np.min(norms)  # THIS ASSUMES THAT ONE COLLISION IS ENOUGH TO DESTROY THE SATELLITE
 
     distances_hw = np.random.choice(
         distances, size=n_sat_hw
