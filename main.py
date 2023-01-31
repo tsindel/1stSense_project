@@ -14,8 +14,6 @@ sat_avg_size = 5  # average satellite size in m
 n_debris = 500000  # number of pieces of debris in the given orbit (scientific data)
 n_colls_data = 6  # desired number of sat collisions with debris per year
 optimize = True  # Chooses whether to optimize irregularity ratio for sats
-orbits_saved = True  # declares whether orbit trajectories of debris have been saved in files before 'xout etc.'
-distances_saved = True  # declares whether orbit interferences have been saved to file 'norms'
 sat_spacing = "random"  # 'random' or 'uniform' spacing of sats
 irreg_ratio_custom = 132  # custom irregularity ratio for sat-debris interactions
 x_refinement = 10
@@ -32,10 +30,10 @@ x_sats, y_sats, z_sats = sat.gen_sat_constellation(
 )  # generate sat constellation
 
 """Generate space debris with random orbits"""
-if orbits_saved:
+try:
     print('\nLoading space debris trajectories...')
     x_circle, y_circle, z_circle = np.load("xout.pkl.npy"), np.load("yout.pkl.npy"), np.load("zout.pkl.npy")
-else:
+except FileNotFoundError:
     print('\nGenerating space debris trajectories...')
     x_circle, y_circle, z_circle = sat.gen_rand_orbits(altitude, n_debris)
     np.save("xout.pkl", x_circle), np.save("yout.pkl", x_circle), np.save(
@@ -43,10 +41,10 @@ else:
     )
 
 """Calculate all distances of sat-debris combinations and save them to file"""
-if distances_saved:
+try:
     print('\nLoading orbital distances...')
     norms = np.load("norms.pkl.npy")
-else:
+except FileNotFoundError:
     print('\nComputing orbital distances...')
     sat.get_distances_file(x_sats, y_sats, z_sats, x_circle, y_circle, z_circle, n_debris)
     norms = np.load("norms.pkl.npy")
@@ -87,12 +85,7 @@ for coll_ratio in tqdm(np.linspace(0.1,1,p_refinement), total=p_refinement):
         )
 
         # Calculate debris collision reduction
-        if cols_nohw == 0:
-            col_reduction = 0
-        else:
-            col_reduction = (
-                (cols_nohw - cols_hw) / cols_nohw
-            )  # relative reduction in collisions
+        col_reduction = 0 if cols_nohw == 0 else col_reduction = (cols_nohw - cols_hw) / cols_nohw
 
         result = np.append(result, [[coll_ratio, nhw_ratio, col_reduction]], axis=0)  # append result to table
 
