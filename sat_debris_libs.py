@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from tqdm.auto import tqdm
+from scipy.special import comb
 
 
 def gen_planet(altitude_km, r_earth=6378):
@@ -280,3 +281,15 @@ def sat_detect_algo(
     n_sats_col_after = np.count_nonzero(norms_det <= threshold_col)
 
     return n_sats_col_before, n_sats_col_after
+
+
+def binom_prob(N, m, x):
+    return comb(N, m) * np.power(x, m) * np.power(1 - x, N - m)
+
+
+def find_max_prob(group_elems: object, unit_prob: object) -> object:
+    m_vals = np.arange(group_elems + 1)
+    probs = binom_prob(group_elems, m_vals, unit_prob)
+    max_index = np.argmax(probs)
+    return m_vals[max_index], probs[max_index]
+
