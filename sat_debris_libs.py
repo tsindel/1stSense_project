@@ -199,7 +199,7 @@ def get_debris_candidates(norms, hw, rdet, rcol):
         ),
         norms.shape[1],
     )
-    pbar = tqdm(total=d, desc="Analyzing debris candidates", leave=False)
+    pbar = tqdm(total=d, desc="Analyzing debris candidates", position=0, leave=False)
     for debris in np.arange(d):
         detected = np.intersect1d(
             hw, np.where(norms[:, debris] <= rdet)[0]

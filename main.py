@@ -7,13 +7,13 @@ from tqdm.auto import tqdm
 ########################################################################################################################
 """Simulation parameter definition"""
 altitude = 2000  # orbit altitude in km
-Nsat = 10  # total number in the sat constellation
+Nsat = 10000  # total number in the sat constellation
 sat_destr_prob = 0.55 / 100  # 0.55 %
-Nhw = 10000  # default number of hardware-equipped sats (our hardware)
+Nhw = 100  # default number of hardware-equipped sats (our hardware)
 detection_range = 0.8  # detection range of the hardware in km
 sat_avg_size = 5  # average satellite size in m
 n_debris = 50000  # number of pieces of debris in the given orbit (scientific data)
-sat_spacing = "random"  # 'random' or 'uniform' spacing of sats
+sat_spacing = "uniform"  # 'random' or 'uniform' spacing of sats
 irreg_ratio_custom = 132  # custom irregularity ratio for sat-debris interactions
 x_refinement = 10
 p_refinement = 6   # number of different collision ratios considered in graph
@@ -74,7 +74,7 @@ for coll_ratio in tqdm(np.logspace(-6, -1, p_refinement), total=p_refinement):
 
     """Simulate collisions with and w/o detection & avoidance hardware"""
     for nhw_ratio in tqdm(np.linspace(0.1,1,x_refinement), total=x_refinement):
-        print('\nSimulating collisions...')
+        print('\nSimulating collisions for {} #HW ratio...'.format(nhw_ratio))
         nhw = round(nhw_ratio * Nsat)
         det_calib = irreg_ratio / irreg_ratio_0  # calibrating detection range based on debris irregularity
         cols_nohw, cols_hw = sat.sat_detect_algo(
