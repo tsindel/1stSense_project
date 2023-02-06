@@ -267,7 +267,7 @@ def sat_detect_algo(
     threshold_col = irreg_ratio * sat_avg_size / 2e3
     n_sats = norms.shape[0]
     hw = np.random.choice(
-        np.arange(n_sats), n_sat_hw
+        np.arange(n_sats), n_sat_hw  # TODO: add hw array buffer so that the hw choice does not change every time
     )  # pick indexes of sats with hardware randomly
 
     # get indexes of debris avoidance candidates
