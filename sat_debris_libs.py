@@ -2,6 +2,14 @@ import math
 import numpy as np
 from tqdm.auto import tqdm
 from scipy.special import comb
+import asyncio
+
+
+def background(f):
+    def wrapped(*args, **kwargs):
+        return asyncio.get_event_loop().run_in_executor(None, f, *args, **kwargs)
+
+    return wrapped
 
 
 def gen_planet(altitude_km, r_earth=6378):
@@ -56,6 +64,7 @@ def gen_sat_constellation(n_sat, altitude_km, spacing="random"):
     return x_sats, y_sats, z_sats
 
 
+@background
 def gen_rand_orbits(altitude, num_orbits=1, r_earth=6378, discr=40):
     R = r_earth + altitude
 
@@ -113,6 +122,7 @@ def gen_rand_orbits(altitude, num_orbits=1, r_earth=6378, discr=40):
     )  # return 2D arrays of orbit coords for each debris
 
 
+@background
 def sat_2_orb_dists(
     x_sats,
     y_sats,
@@ -155,6 +165,7 @@ def sat_2_orb_dists(
     return n_sats_det, n_sats_col, sats_in_detection, sats_in_collision, min_dist
 
 
+@background
 def optimize_collisions(
     n_sat_collisions, sat_avg_size, norms,
     max_iters = 500
@@ -188,6 +199,7 @@ def optimize_collisions(
     return irreg_ratio
 
 
+@background
 def get_debris_candidates(norms, hw, rdet, rcol):
 
     """najde úlomky které jsou zároveň detekovány
@@ -222,6 +234,7 @@ def get_debris_candidates(norms, hw, rdet, rcol):
     return debris_candidates
 
 
+@background
 def get_distances_file(
     x_sats,
     y_sats,
@@ -258,17 +271,13 @@ def get_distances_file(
 
 
 def sat_detect_algo(
-    n_sat_hw,
+    hw,
     threshold_det,
     sat_avg_size,
     irreg_ratio,
     norms,
 ):
     threshold_col = irreg_ratio * sat_avg_size / 2e3
-    n_sats = norms.shape[0]
-    hw = np.random.choice(
-        np.arange(n_sats), n_sat_hw  # TODO: add hw array buffer so that the hw choice does not change every time
-    )  # pick indexes of sats with hardware randomly
 
     # get indexes of debris avoidance candidates
     debris_det = get_debris_candidates(norms, hw, threshold_det, threshold_col).astype(int)
@@ -292,4 +301,3 @@ def find_max_prob(group_elems: object, unit_prob: object) -> object:
     probs = binom_prob(group_elems, m_vals, unit_prob)
     max_index = np.argmax(probs)
     return m_vals[max_index], probs[max_index]
-
