@@ -3,6 +3,8 @@ import numpy as np
 from tqdm.auto import tqdm
 from scipy.special import comb
 import asyncio
+import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
 
 
 def background(f):
@@ -64,7 +66,6 @@ def gen_sat_constellation(n_sat, altitude_km, spacing="random"):
     return x_sats, y_sats, z_sats
 
 
-@background
 def gen_rand_orbits(altitude, num_orbits=1, r_earth=6378, discr=40):
     R = r_earth + altitude
 
@@ -122,7 +123,6 @@ def gen_rand_orbits(altitude, num_orbits=1, r_earth=6378, discr=40):
     )  # return 2D arrays of orbit coords for each debris
 
 
-@background
 def sat_2_orb_dists(
     x_sats,
     y_sats,
@@ -165,33 +165,15 @@ def sat_2_orb_dists(
     return n_sats_det, n_sats_col, sats_in_detection, sats_in_collision, min_dist
 
 
-@background
 def optimize_collisions(
     n_sat_collisions, sat_avg_size, norms,
-    max_iters = 500
+    max_iters = 500, disp=False
 ):
-
     """This fcn computes the required irregularity ratio of the sats to result in the specified number
     of collisions annually"""
-
-    # Compute the number of orbits needed to ensure that n_sat_det sats detect these orbits
-    irreg_ratio, iter = 0, 0  # sat shape irregularity ratio (measures debris collision exposure)
-    pbar = tqdm()
-    while iter <= max_iters:
-        iter += 1
-        irreg_ratio += 10
-        rcol = irreg_ratio * sat_avg_size / 2e3
-        n_sats_col = np.count_nonzero(norms <= rcol)
-        # print('Rcol = {},\tCollisions = {}'.format(rcol, n_sats_col))
-
-        if n_sats_col >= n_sat_collisions:
-            break
-
-        pbar.update()
-
-    pbar.close()
+    irreg_ratio = nth_min(norms, n_sat_collisions) * 2e3 / sat_avg_size
     print(
-        "{} irregularity ratio needed to have {} collisions per year:".format(
+        "\n{} irregularity ratio needed to have {} collisions per year".format(
             irreg_ratio, n_sat_collisions
         )
     )
@@ -199,7 +181,6 @@ def optimize_collisions(
     return irreg_ratio
 
 
-@background
 def get_debris_candidates(norms, hw, rdet, rcol):
 
     """najde úlomky které jsou zároveň detekovány
@@ -234,7 +215,6 @@ def get_debris_candidates(norms, hw, rdet, rcol):
     return debris_candidates
 
 
-@background
 def get_distances_file(
     x_sats,
     y_sats,
@@ -247,19 +227,13 @@ def get_distances_file(
     n_sats = x_sats.shape[0]
     # Compute the shortest distance from each satellite to the random orbit
     norms = np.empty((n_sats, n_debris))
-    for sat in tqdm(
-        np.arange(n_sats),
-        desc="Calculating interferences",
-        total=n_sats,
-        position=0,
-        leave=True,
-    ):
+    for sat in np.arange(n_sats):
         for deb in tqdm(
             np.arange(n_debris),
             desc="Sat {}/{}".format(sat + 1, n_sats),
             total=n_debris,
             position=0,
-            leave=True,
+            leave=False,
         ):
             diffs = np.column_stack(
                 (x_sats[sat], y_sats[sat], z_sats[sat])
@@ -268,6 +242,8 @@ def get_distances_file(
             )
             norms[sat, deb] = np.min(np.linalg.norm(diffs, axis=1))
     np.save("norms.pkl", norms)
+
+    return norms
 
 
 def sat_detect_algo(
@@ -293,11 +269,25 @@ def sat_detect_algo(
 
 
 def binom_prob(N, m, x):
+    """Compute binomial probability"""
     return comb(N, m) * np.power(x, m) * np.power(1 - x, N - m)
 
 
 def find_max_prob(group_elems: object, unit_prob: object) -> object:
+    """Find the number of sats destroyed per year with maximum probability"""
     m_vals = np.arange(group_elems + 1)
     probs = binom_prob(group_elems, m_vals, unit_prob)
     max_index = np.argmax(probs)
     return m_vals[max_index], probs[max_index]
+
+
+def count_collision_diff(irreg_ratio, *args):
+    norms, sat_avg_size, desired = args[0], args[1], args[2]
+    return np.count_nonzero(norms <= irreg_ratio * sat_avg_size / 2e3) - desired
+
+
+def nth_min(array, n):
+    k = -1
+    for _ in np.arange(n-1):
+        k = np.min(array[array != k])
+    return k

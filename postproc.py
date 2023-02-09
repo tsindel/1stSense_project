@@ -2,11 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 
+n_sats = 750
 
 # Load data
 p_ref_type, x_ref, p_ref = np.load('p_scale.pkl.npy')
 x_refinement, p_refinement = int(x_ref), int(p_ref)
-res = np.load("result.pkl.npy")
+res = np.load("result_{}.pkl.npy".format(n_sats))
 
 # Parse data
 p0, p1, x0 = res[0, 0], res[-1, 0], res[0, 1]

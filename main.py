@@ -10,11 +10,11 @@ import os
 """Simulation parameter definition"""
 altitude = 700  # orbit altitude in km
 Nsat = [100, 300, 750]  # total number in the sat constellation
-sat_destr_prob = 0.55 / 100  # 0.55 %
+sat_destr_prob = 10 * 0.55 / 100  # 0.55 %
 Nhw = 100  # default number of hardware-equipped sats (our hardware)
 detection_range = 0.8  # detection range of the hardware in km
 sat_avg_size = 5  # average satellite size in m
-n_debris = 50000  # number of pieces of debris in the given orbit (scientific data)
+n_debris = 200000  # number of pieces of debris in the given orbit (scientific data)
 sat_spacing = "random"  # 'random' or 'uniform' spacing of sats
 irreg_ratio_custom = 132  # custom irregularity ratio for sat-debris interactions
 x_refinement = 10  # number of Nhw data points
@@ -33,13 +33,13 @@ for nsat in Nsat:
         altitude
     )  # generate planet Earth (Yes, I am a God now)
     x_sats, y_sats, z_sats = sat.gen_sat_constellation(
-        Nsat, altitude, spacing=sat_spacing
+        nsat, altitude, spacing=sat_spacing
     )  # generate sat constellation
 
     """Generate space debris with random orbits"""
     try:
-        print('\nLoading space debris trajectories...')
         x_circle, y_circle, z_circle = np.load("xout.pkl.npy"), np.load("yout.pkl.npy"), np.load("zout.pkl.npy")
+        print('\nLoading space debris trajectories...')
     except FileNotFoundError:
         print("\nGenerating space debris trajectories...")
         x_circle, y_circle, z_circle = sat.gen_rand_orbits(altitude, n_debris)
@@ -49,22 +49,14 @@ for nsat in Nsat:
 
     """Calculate all distances of sat-debris combinations and save them to file"""
     try:
-        print("\nLoading orbital distances...")
         norms = np.load("norms.pkl.npy")
+        print("\nLoading orbital distances...")
     except FileNotFoundError:
         print("\nComputing orbital distances...")
-        sat.get_distances_file(
+        norms = sat.get_distances_file(
             x_sats, y_sats, z_sats, x_circle, y_circle, z_circle, n_debris
         )
-        norms = np.load("norms.pkl.npy")  # load distances saved to file by previous fcn
-
-    """Calibrate irregurality ratio of sat-debris interaction with respect to data"""
-    if optimize:
-        print("\nCalibrating debris irregularity ratio...")
-        n_cols_data = sat.find_max_prob(Nsat, sat_destr_prob)[0]
-        irreg_ratio_0 = sat.optimize_collisions(n_cols_data, sat_avg_size, norms)
-    else:
-        irreg_ratio_0 = irreg_ratio_custom
+        np.save("norms.pkl", norms)
 
     """Analyze different detection & collision configurations"""
     result = np.empty((0, 3), int)
@@ -72,10 +64,10 @@ for nsat in Nsat:
         np.linspace(min_col_r, max_col_r, p_refinement)
     for coll_ratio in tqdm(iterator, total=p_refinement):
         """Optimize irregurality ratio of sat-debris interaction"""
-        n_colls_desired = round(Nsat * coll_ratio)
+        n_colls_desired = round(nsat * coll_ratio)
         if optimize:
             print("\nOptimizing debris irregularity ratio...")
-            irreg_ratio = sat.optimize_collisions(n_colls_desired, sat_avg_size, norms)
+            irreg_ratio = sat.optimize_collisions(n_colls_desired, sat_avg_size, norms, max_iters=10000)
         else:
             irreg_ratio = irreg_ratio_custom
 
@@ -83,12 +75,11 @@ for nsat in Nsat:
         hw = np.empty((0,))
         for nhw_ratio in tqdm(np.linspace(0.1, 1, x_refinement), total=x_refinement):
             print("\nSimulating collisions for {} #HW ratio...".format(nhw_ratio))
-            nhw = round(nhw_ratio * Nsat)
+            nhw = round(nhw_ratio * nsat)
             n_sats = norms.shape[0]
             hw = np.concatenate((hw, np.random.choice(np.setdiff1d(np.arange(n_sats), hw), nhw - hw.size)), axis=0)  # pick indexes of sats with hardware randomly
-            det_calib = (
-                irreg_ratio / irreg_ratio_0
-            )  # calibrating detection range based on debris irregularity
+            det_calib = irreg_ratio  # calibrating detection range based on debris irregularity
+            print('HW: {}'.format(hw))
             cols_nohw, cols_hw = sat.sat_detect_algo(
                 hw,
                 detection_range * det_calib,
