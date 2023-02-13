@@ -192,27 +192,30 @@ def get_debris_candidates(norms, hw, rdet, rcol):
         ),
         norms.shape[1],
     )
+    hw_destr = 0
     pbar = tqdm(total=d, desc="Analyzing debris candidates", position=0, leave=False)
     for debris in np.arange(d):
         detected = np.intersect1d(
             hw, np.where(norms[:, debris] <= rdet)[0]
         )  # find sats with HW which had this debris in detection range
-        collided = np.where(norms[:, debris] <= rcol)[
-            0
-        ]  # find sats (idx) which collided with this debris
+        collided = np.where(norms[:, debris] <= rcol)[0]  # find sats (idx) which collided with this debris
+
         debris_candidates = (
             np.append(debris_candidates, debris)
             if not (detected.size == 0 or collided.size == 0)
             else debris_candidates
         )
+        # Check how many sats with HW were destroyed by this debris
+        hw_destr += np.intersect1d(hw, np.where(norms[:, debris] <= rcol)).size
+
         # mark this debris as avoidance candidate if it was both detected and collided
         pbar.update()
 
     pbar.close()
 
-    print("There is {} debris candidates".format(len(debris_candidates)))
+    print("There is {} detected debris candidates".format(len(debris_candidates+hw_destr)))
 
-    return debris_candidates
+    return debris_candidates, hw_destr
 
 
 def get_distances_file(
@@ -255,15 +258,15 @@ def sat_detect_algo(
 ):
     threshold_col = irreg_ratio * sat_avg_size / 2e3
 
-    # get indexes of debris avoidance candidates
-    debris_det = get_debris_candidates(norms, hw, threshold_det, threshold_col).astype(int)
+    # get indexes of debris avoidance candidates - debris which is in detection range of some satellite
+    debris_det, destroyed_hw = get_debris_candidates(norms, hw, threshold_det, threshold_col)
 
     # Remove detected debris from collision potential
-    norms_det = np.delete(norms, debris_det, axis=1)
+    norms_det = np.delete(norms, debris_det.astype(int), axis=1)
 
     # get the sat collision numbers
     n_sats_col_before = np.count_nonzero(norms <= threshold_col)
-    n_sats_col_after = np.count_nonzero(norms_det <= threshold_col)
+    n_sats_col_after = np.count_nonzero(norms_det <= threshold_col) + destroyed_hw
 
     return n_sats_col_before, n_sats_col_after
 

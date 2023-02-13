@@ -14,7 +14,7 @@ sat_destr_prob = 10 * 0.55 / 100  # 0.55 %
 Nhw = 100  # default number of hardware-equipped sats (our hardware)
 detection_range = 0.8  # detection range of the hardware in km
 sat_avg_size = 5  # average satellite size in m
-n_debris = 200000  # number of pieces of debris in the given orbit (scientific data)
+n_debris = 50000  # number of pieces of debris in the given orbit (scientific data)
 sat_spacing = "random"  # 'random' or 'uniform' spacing of sats
 irreg_ratio_custom = 132  # custom irregularity ratio for sat-debris interactions
 x_refinement = 10  # number of Nhw data points
@@ -24,6 +24,16 @@ p_scale = 'lin'  # lin / log
 np.save('p_scale.pkl', [p_scale, x_refinement, p_refinement])
 min_col_r = 0.1
 max_col_r = 0.5
+
+"""Remove saved files?"""
+remove_files = input('Remove saved files? (Y, N) : ')
+del_files = ['norms', 'p_scale', ['result_{}'.format(nsat) for nsat in Nsat], 'xout', 'yout', 'zout']
+if remove_files in ['Y', 'y', 'yes', 'Yes', 'YES', 'True', 'true', 'TRUE']:
+    for file in del_files:
+        try:
+            os.remove('{}.pkl.npy'.format(file))
+        except FileNotFoundError:
+            pass
 
 ########################################################################################################################
 for nsat in Nsat:
